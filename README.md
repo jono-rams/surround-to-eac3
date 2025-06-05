@@ -69,6 +69,7 @@ eac3-transcode --input "/path/to/your/movie.mkv"
 2. **Process** all videos in a folder (output saved in the same directory as **originals):**
 
 eac3-transcode --input "/path/to/your/video_folder/"
+
 3. **Process videos and save them to a specific output directory:**
 
 eac3-transcode --input "/path/to/your/video_folder/" --outdir "/path/to/your/processed_videos/"
@@ -82,7 +83,7 @@ eac3-transcode --input "video.mp4" --bitrate "640k"
 
 **Usage:**
 
-eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE]
+eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE]  
 An advanced video transcoder that processes files to use E-AC3 for specific audio tracks, filters by language, and can process entire folders.
 
 **Options:**
