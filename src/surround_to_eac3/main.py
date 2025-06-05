@@ -144,7 +144,7 @@ def process_file_with_ffmpeg(
         return None
 
 
-def main_cli():
+def main():
     # Initial check for ffmpeg and ffprobe
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         missing_tools = []
@@ -298,8 +298,3 @@ def main_cli():
     print(f"Skipped (no qualifying audio ops): {stats['skipped_rules']}")
     print(f"Failed to process: {stats['failed']}")
     print("--------------------------")
-
-
-if __name__ == '__main__':
-    main_cli()
-    
