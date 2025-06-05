@@ -162,7 +162,7 @@ Contributions, issues, and feature requests are welcome! Feel free to check [iss
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details (you'll need to create this file if you want one).
+This project is licensed under the MIT License - see the [LICENSE](https://gitea.jono-rams.work/jono/ffmpeg-audio-transcoder/src/branch/main/LICENSE) file for details.
 
 ## Acknowledgements
 
