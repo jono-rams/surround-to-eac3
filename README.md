@@ -2,25 +2,29 @@
 
 **A** command-line utility to intelligently find and convert 5.1 surround sound audio tracks in your video files (`.mkv`, `.mp4`) to **the E-AC3 (Dolby Digital Plus) format, while preserving other streams.**
 
-This tool is perfect for users who want to standardize their media library's audio, ensuring compatibility and high quality for 5.1 channel audio tracks, particularly for English and Japanese languages.
+This tool is perfect for users who want to standardize their media library's audio, ensuring compatibility and high quality for 5.1 channel audio tracks while allowing you to filter by language.
 
 ## Overview
 
 `eac3-transcode` automates the often tedious process of inspecting video files, identifying specific audio tracks, and re-encoding them. It's designed to be smart about which tracks to process:
 
-* **Scans Individual Files or Entire Directories:** Process a single video or batch-process an entire folder (including subfolders).
+* **Scans Individual Files or Entire Directories:** 
 
-* **Targets Specific Languages:** Focuses on English (`eng`) and Japanese (`jpn`) audio streams.
+  * Process a single video or batch-process an entire folder (including subfolders).
+
+* **Targets Specific Languages:** 
+
+  * By default, it processes English (`eng`) and Japanese (`jpn`) audio streams, but this is **fully customizable** via a command-line argument.
 
 * **Intelligent Transcoding:**
 
-  * Converts 5.1 channel audio streams (that aren't already `ac3` or `eac3`) to `eac3`.
+  * Converts 5.1 channel audio streams (that aren't already `ac3` or `eac3`) in your target languages to `eac3`.
 
 * **Smart Copying:**
 
-  * Copies English or Japanese audio streams that are already in `ac3` or `eac3` format.
+  * Copies target language audio streams that are already in `ac3` or `eac3` format.
 
-  * Copies English or Japanese audio streams that are not 5.1 channels (e.g., stereo).
+  * Copies target language audio streams that are not 5.1 channels (e.g., stereo).
 
 * **Stream Preservation:**
 
@@ -30,9 +34,9 @@ This tool is perfect for users who want to standardize their media library's aud
 
 * **Efficient Processing:**
 
-  * Other language audio streams are dropped to save space and processing time.
+  * Audio streams not in your target languages are dropped to save space and processing time.
 
-  * Files are skipped entirely if no English or Japanese audio streams meet the criteria for transcoding or copying, preventing empty or unnecessary output files.
+  * Files are skipped entirely if no audio streams in the target languages meet the criteria for transcoding or copying, preventing empty or unnecessary output files.
 
 * **Flexible Output:** Save processed files alongside originals or in a specified output directory, maintaining the source folder structure if applicable.
 
@@ -79,11 +83,15 @@ eac3-transcode --input "/path/to/your/video_folder/" --outdir "/path/to/your/pro
 
 eac3-transcode --input "video.mp4" --bitrate "640k"
 
+4. **Process for different languages (e.g., English and Spanish):**
+
+eac3-transcode --input "video.mkv" --langs "eng,spa"
+
 ## Command-Line Options
 
 **Usage:**
 
-eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE]  
+eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE] [-l LANGUAGES]  
 An advanced video transcoder that processes files to use E-AC3 for specific audio tracks, filters by language, and can process entire folders.
 
 **Options:**
@@ -100,6 +108,9 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 * `-br AUDIO_BITRATE, --bitrate AUDIO_BITRATE`  
     **(Optional)** Sets the audio bitrate for the E-AC3 stream (e.g., '640k', '1536k'). Defaults to '1536k'.
 
+* `-l LANGUAGES, --langs LANGUAGES`  
+    **(Optional)** Comma-separated list of 3-letter audio languages to keep (e.g., 'eng,spa,fre'). Defaults to 'eng,jpn'.
+
 ## How It Works
 
 1. **File Discovery:** The script scans the input path for `.mkv` and `.mp4` files.
@@ -110,21 +121,21 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
 3. **Decision Logic:**
 
-   * **Language Filter:** Only `eng` (English) and `jpn` (Japanese) audio streams are considered for keeping. Others are marked to be dropped.
+   * **Language Filter:** Only audio streams matching the languages provided with the `-l LANGUAGES, --langs LANGUAGES` option are considered for keeping. **This defaults to `eng,jpn`**. Others are marked to be dropped.
 
-   * **Transcode Criteria:** An `eng` or `jpn` stream is transcoded to E-AC3 if:
+   * **Transcode Criteria:** A target language stream is transcoded to E-AC3 if:
 
      * It has 6 audio channels (5.1 surround).
 
      * Its current codec is *not* `ac3` or `eac3`.
 
-   * **Copy Criteria:** An `eng` or `jpn` stream is copied directly if:
+   * **Copy Criteria:** A target language stream is copied directly if:
 
      * It's already `ac3` or `eac3`.
 
      * It does not have 6 channels (e.g., it's stereo).
 
-   * **File Skipping:** If no audio streams are marked for either 'transcode' or 'copy' (e.g., a file only contains French audio, or all English/Japanese audio is already in the desired format and channel layout for copying), the entire file is skipped to avoid creating redundant or empty output files.
+   * **File Skipping:** If no audio streams are marked for 'transcode' (e.g., a file only contains French audio, and French is not a target language, or all target languages' audio are already in the desired format and channel layout for copying), the entire file is skipped to avoid creating redundant or empty output files.
 
 4. **Processing (using `ffmpeg`):**
 
@@ -144,9 +155,9 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
   * Ensure FFmpeg is installed correctly and its `bin` directory is in your system's PATH environment variable. See the [Prerequisites](#prerequisites) section.
 
-* **No files processed / "Skipping 'filename': No English/Japanese audio streams meet criteria..."**:
+* **No files processed / "Skipping 'filename': No audio streams in the desired languages... meet criteria..."**:
 
-  * This is expected behavior if the files scanned do not contain any English or Japanese audio tracks that require transcoding to E-AC3 or qualify for copying based on the tool's logic. For example, if a file only has a stereo English AAC track, it will be copied (not transcoded to 5.1 E-AC3). If it only has a French 5.1 DTS track, it will be skipped.
+  * This is expected behavior if the files scanned do not contain any audio tracks in the target languages that require transcoding to E-AC3 or qualify for copying. This message reflects the default languages (`eng,jpn`) or the ones you specified with `--langs`.
 
 * **Permission Errors:**
 

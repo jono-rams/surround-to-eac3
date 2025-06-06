@@ -177,8 +177,15 @@ def main():
         dest="audio_bitrate",
         default="1536k"
     )
+    parser.add_argument(
+        "-l", "--langs",
+        help="Comma-separated list of 3-letter audio languages to keep (e.g., 'eng,jpn').\nDefaults to 'eng,jpn'.",
+        dest="languages",
+        default="eng,jpn"
+    )
 
     args = parser.parse_args()
+    target_languages = [lang.strip().lower() for lang in args.languages.split(',') if lang.strip()]
     input_path_abs = os.path.abspath(args.input_path)
     files_to_process_paths = []
 
@@ -227,7 +234,7 @@ def main():
                 lang = stream['language']
                 op_to_perform = None # Will be 'transcode', 'copy', or None (for drop)
 
-                if lang in ['eng', 'jpn']:
+                if lang in target_languages:
                     is_5_1 = stream.get('channels') == 6
                     is_not_ac3_eac3 = stream.get('codec_name') not in ['ac3', 'eac3']
 
@@ -242,7 +249,7 @@ def main():
                         reason = ", ".join(reason_parts) if reason_parts else "meets other criteria for copying"
                         print(f"    🔈 Will copy: Audio stream #{stream['index']} ({lang}, {stream.get('channels')}ch, {stream.get('codec_name')}) - Reason: {reason}")
                 else:
-                    # Language is not English or Japanese, so it will be dropped (no op_to_perform)
+                    # Language is not in the target list, so it will be dropped (no op_to_perform)
                     print(f"    🔈 Will drop: Audio stream #{stream['index']} ({lang}, {stream.get('channels')}ch, {stream.get('codec_name')}) - Other language.")
 
                 if op_to_perform:
@@ -252,17 +259,12 @@ def main():
                         'lang': lang # Store for potential metadata setting during transcode
                     })
         
-        # --- Apply the new skipping logic ---
-        # If no English/Japanese audio streams meet criteria for processing (transcode/copy),
-        # skip creating a new file for this input file entirely.
         if not audio_ops_for_ffmpeg:
-            print(f"    ⏭️ Skipping '{display_name}': No English/Japanese audio streams meet criteria for processing (transcode/copy). File will not be created.")
+            print(f"    ⏭️ Skipping '{display_name}': No audio streams in the desired languages ({args.languages}) meet criteria for processing. File will not be created.")
             stats["skipped_rules"] += 1
             continue # Move to the next file in files_to_process_paths
 
-        # If we reach here, audio_ops_for_ffmpeg is NOT empty,
-        # meaning at least one English or Japanese audio stream will be processed.
-
+        # If we reach here, audio_ops_for_ffmpeg is NOT empty
         # Determine the output directory for this specific file
         output_dir_for_this_file = None
         if args.output_directory_base:
@@ -298,3 +300,7 @@ def main():
     print(f"Skipped (no qualifying audio ops): {stats['skipped_rules']}")
     print(f"Failed to process: {stats['failed']}")
     print("--------------------------")
+
+if __name__ == "__main__":
+    main()
+
