@@ -107,6 +107,12 @@ def process_file_with_ffmpeg(
         output_audio_stream_ffmpeg_idx += 1
     
     ffmpeg_cmd.extend(map_operations)
+
+    if final_output_filepath.lower().endswith('.mkv'):
+        ffmpeg_cmd.extend(['-f', 'matroska'])
+    elif final_output_filepath.lower().endswith('.mp4'):
+        ffmpeg_cmd.extend(['-f', 'mp4'])
+
     ffmpeg_cmd.extend(["-y", temp_output_filepath])
 
     logs.append(f"    ⚙️ Processing: '{base_filename}' -> '{output_filename}'")
