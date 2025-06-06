@@ -5,12 +5,32 @@ import shutil
 import argparse
 import json
 import threading
+import queue 
 from functools import partial
 from tqdm import tqdm
 
 # Global lock for TQDM writes to prevent interleaving from multiple threads
 tqdm_lock = threading.Lock()
 SUPPORTED_EXTENSIONS = (".mkv", ".mp4")
+
+
+def get_video_duration(filepath: str) -> float:
+    """Gets the duration of a video file in seconds."""
+    if not shutil.which("ffprobe"):
+        return 0.0
+    
+    command = [
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        filepath
+    ]
+    try:
+        process = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        return float(process.stdout.strip())
+    except (subprocess.CalledProcessError, ValueError):
+        return 0.0
 
 
 def get_stream_info(filepath: str, stream_type: str = "audio") -> tuple[list[dict], list[str]]:
@@ -57,19 +77,33 @@ def get_stream_info(filepath: str, stream_type: str = "audio") -> tuple[list[dic
                 detail["channels"] = stream.get("channels")
                 detail["language"] = stream.get("tags", {}).get("language", "und").lower()
             streams_details.append(detail)
-        return streams_details
+        return streams_details, logs
     except json.JSONDecodeError:
         logs.append(f"    ⚠️ Warning: Failed to decode ffprobe JSON for {stream_type} streams in '{os.path.basename(filepath)}'.")
         return [], logs
     except Exception as e:
         logs.append(f"    ⚠️ Error getting {stream_type} stream info for '{os.path.basename(filepath)}': {e}")
         return [], logs
+    
+
+def time_str_to_seconds(time_str: str) -> float:
+    """Converts HH:MM:SS.ms time string to seconds."""
+    parts = time_str.split(':')
+    seconds = float(parts[-1])
+    if len(parts) > 1:
+        seconds += int(parts[-2]) * 60
+    if len(parts) > 2:
+        seconds += int(parts[-3]) * 3600
+    return seconds
+
 
 def process_file_with_ffmpeg(
     input_filepath: str,
     final_output_filepath: str | None,
     audio_bitrate: str,
-    audio_processing_ops: list[dict] # [{'index':X, 'op':'transcode'/'copy', 'lang':'eng'}]
+    audio_processing_ops: list[dict], # [{'index':X, 'op':'transcode'/'copy', 'lang':'eng'}]
+    duration: float,
+    pbar_position: int
 ) -> tuple[bool, list[str]]:
     """
     Processes a single video file using ffmpeg, writing to a temporary file first.
@@ -79,22 +113,18 @@ def process_file_with_ffmpeg(
         logs.append("    🚨 Error: ffmpeg is not installed or not found.")
         return False, logs
 
-    base_filename = os.path.basename(input_filepath)
-    name, ext = os.path.splitext(base_filename)
-    output_filename = f"{name}_eac3{ext}"
-
     # FFMpeg will write to a temporary file, which we will rename upon success
     temp_output_filepath = final_output_filepath + ".tmp"
     base_filename = os.path.basename(input_filepath)
     output_filename = os.path.basename(final_output_filepath)
 
-    ffmpeg_cmd = ["ffmpeg", "-i", input_filepath]
+    ffmpeg_cmd = ["ffmpeg", "-nostdin", "-i", input_filepath]
     map_operations = []
     output_audio_stream_ffmpeg_idx = 0 # For -c:a:0, -c:a:1 etc.
 
-    # Map Video Streams (optional mapping)
+    # Map Video Streams
     map_operations.extend(["-map", "0:v?", "-c:v", "copy"])
-    # Map Subtitle Streams (optional mapping)
+    # Map Subtitle Streams
     map_operations.extend(["-map", "0:s?", "-c:s", "copy"])
 
     # Map Audio Streams based on operations
@@ -113,50 +143,64 @@ def process_file_with_ffmpeg(
     elif final_output_filepath.lower().endswith('.mp4'):
         ffmpeg_cmd.extend(['-f', 'mp4'])
 
-    ffmpeg_cmd.extend(["-y", temp_output_filepath])
+    ffmpeg_cmd.extend(["-y", "-v", "quiet", "-stats_period", "1", "-progress", "pipe:1", temp_output_filepath])
 
     logs.append(f"    ⚙️ Processing: '{base_filename}' -> '{output_filename}'")
 
-    try:
-        process = subprocess.run(
-            ffmpeg_cmd, capture_output=True, text=True, check=False,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-        )
-        if process.returncode == 0:
-            if os.path.exists(temp_output_filepath) and os.path.getsize(temp_output_filepath) > 0:
-                os.rename(temp_output_filepath, final_output_filepath) # Atomic rename on success
-                logs.append(f"    ✅ Success: '{output_filename}' saved.")
-                return True, logs
-            else: # Should not happen if ffmpeg returncode is 0 and no "-f null" output.
-                if process.stderr: logs.append(f"        ffmpeg stderr:\n{process.stderr.strip()}")
-                return False, logs
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+
+    file_pbar = None
+    if duration > 0:
+        file_pbar = tqdm(total=int(duration), desc=f"└─'{base_filename[:30]}…'", position=pbar_position, unit='s', leave=False, ncols=100)
+    
+    for line in process.stdout:
+        if "out_time_ms" in line:
+            try:
+                time_us = int(line.strip().split("=")[1])
+                elapsed_seconds = time_us / 1_000_000
+                update_amount = max(0, elapsed_seconds - file_pbar.n)
+                if update_amount > 0:
+                    file_pbar.update(update_amount)
+            except (ValueError, IndexError):
+                continue
+
+    process.wait()
+    file_pbar.close()
+
+    if process.returncode == 0:
+        if os.path.exists(temp_output_filepath) and os.path.getsize(temp_output_filepath) > 0:
+            os.rename(temp_output_filepath, final_output_filepath)
+            logs.append(f"    ✅ Success: '{output_filename}' saved.")
+            return True, logs
         else:
-            logs.append(f"    🚨 Error during ffmpeg processing for '{base_filename}'. RC: {process.returncode}")
-            if process.stderr: logs.append(f"        ffmpeg stderr:\n{process.stderr.strip()}")
+            logs.append(f"    ⚠️ Warning: ffmpeg reported success, but temp file is missing or empty.")
             return False, logs
-    except Exception as e:
-        logs.append(f"    🚨 An unexpected error occurred during transcoding of '{base_filename}': {e}")
+    else:
+        logs.append(f"    🚨 Error during ffmpeg processing for '{base_filename}'. RC: {process.returncode}")
+        stderr_output = process.stderr.read()
+        if stderr_output:
+            logs.append(f"        ffmpeg stderr:\n{stderr_output.strip()}")
         return False, logs
 
 
-def process_single_file(filepath: str, args: argparse.Namespace, input_path_abs: str) -> str:
+def process_single_file(filepath: str, pbar_position: int, args: argparse.Namespace, input_path_abs: str) -> str:
     """
     Analyzes and processes a single file, managing temporary files for graceful exit.
     """
     file_specific_logs = []
+    final_status = "failed"
 
+    
     # Determine a display name relative to the initial input path for cleaner logs
-    if os.path.isdir(input_path_abs):
-        display_name = os.path.relpath(filepath, input_path_abs)
-    else:
-        display_name = os.path.basename(filepath)
-
-    file_specific_logs.append(f"▶️ Checking: '{display_name}'")
+    display_name = os.path.relpath(filepath, input_path_abs) if os.path.isdir(input_path_abs) else os.path.basename(filepath)
+    file_specific_logs.append(f"▶️ Checked: '{display_name}'")
     
     target_languages = [lang.strip().lower() for lang in args.languages.split(',') if lang.strip()]
-    audio_streams_details = get_stream_info(filepath, "audio")
-    audio_ops_for_ffmpeg = []
 
+    audio_streams_details, get_info_logs = get_stream_info(filepath, "audio")
+    file_specific_logs.extend(get_info_logs)
+    
+    audio_ops_for_ffmpeg = []
     if not audio_streams_details:
         file_specific_logs.append("    ℹ️ No audio streams found in this file.")
     else:
@@ -189,15 +233,17 @@ def process_single_file(filepath: str, args: argparse.Namespace, input_path_abs:
         with tqdm_lock:
             for log_msg in file_specific_logs:
                 tqdm.write(log_msg)
-        return "skipped_no_ops"
+        final_status = "skipped_no_ops"
+        return final_status
     
     needs_transcode = any(op['op'] == 'transcode' for op in audio_ops_for_ffmpeg)
     if not needs_transcode:
-        file_specific_logs.append(f"    ⏭️ Skipping '{display_name}': All target audio operations are 'copy'; no transcoding required.")
+        file_specific_logs.append(f"    ⏭️ Skipping '{display_name}': No transcoding required.")
         with tqdm_lock:
             for log_msg in file_specific_logs:
                 tqdm.write(log_msg)
-        return "skipped_no_transcode"
+        final_status = "skipped_no_transcode"
+        return final_status
     
     # Determine final output path
     name, ext = os.path.splitext(os.path.basename(filepath))
@@ -214,11 +260,12 @@ def process_single_file(filepath: str, args: argparse.Namespace, input_path_abs:
     
     # Check for identical paths before starting
     if os.path.abspath(filepath) == os.path.abspath(final_output_filepath):
-        file_specific_logs.append(f"    ⚠️ Warning: Input and output file paths are identical ('{filepath}'). Skipping.")
+        file_specific_logs.append(f"    ⚠️ Warning: Input and output paths are identical. Skipping.")
         with tqdm_lock:
             for log_msg in file_specific_logs:
                 tqdm.write(log_msg)
-        return "skipped_identical_path"
+        final_status = "skipped_identical_path"
+        return final_status
     
     if args.dry_run:
         file_specific_logs.append(f"    DRY RUN: Would process '{display_name}'. No changes will be made.")
@@ -226,7 +273,8 @@ def process_single_file(filepath: str, args: argparse.Namespace, input_path_abs:
             for log_msg in file_specific_logs:
                 tqdm.write(log_msg)
         # We return 'processed' to indicate it *would* have been processed
-        return "processed"
+        final_status = "processed"
+        return final_status
 
     # Ensure output directory exists before processing
     if not os.path.isdir(output_dir_for_this_file):
@@ -238,18 +286,16 @@ def process_single_file(filepath: str, args: argparse.Namespace, input_path_abs:
                 for log_msg in file_specific_logs:
                     tqdm.write(log_msg)
             return "failed"
+        
+    duration = get_video_duration(filepath)
+    if duration == 0:
+        file_specific_logs.append(f"    ⚠️ Could not determine duration for '{display_name}'. Per-file progress will not be shown.")
     
     temp_filepath = final_output_filepath + ".tmp"
-    final_status = "failed" 
     try:
-        success, ffmpeg_logs = process_file_with_ffmpeg(
-            filepath,
-            final_output_filepath,
-            args.audio_bitrate,
-            audio_ops_for_ffmpeg
-        )
+        success, ffmpeg_logs = process_file_with_ffmpeg(filepath, final_output_filepath, args.audio_bitrate, audio_ops_for_ffmpeg, duration, pbar_position)
         file_specific_logs.extend(ffmpeg_logs)
-        return "processed" if success else "failed"
+        final_status = "processed" if success else "failed"
     finally:
         # This block will run whether the try block succeeded, failed, or was interrupted.
         if os.path.exists(temp_filepath):
@@ -261,8 +307,12 @@ def process_single_file(filepath: str, args: argparse.Namespace, input_path_abs:
         with tqdm_lock: # Print all logs for this file at the very end of its processing
             for log_msg in file_specific_logs:
                 tqdm.write(log_msg)
-    
     return final_status
+
+
+# Worker initializer to assign a unique position to each worker's progress bar
+def worker_init(worker_id_queue):
+    threading.current_thread().worker_id = worker_id_queue.get()
 
 
 def main():
@@ -356,21 +406,33 @@ def main():
         "failed": 0
     }
 
+    worker_id_queue = queue.Queue()
+    for i in range(args.jobs):
+        worker_id_queue.put(i + 1)
+
     try:
-        with tqdm(total=len(files_to_process_paths), desc="Overall Progress", unit="file", ncols=100, smoothing=0.1, leave=True) as pbar:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as executor:
-                future_to_path = {
-                    executor.submit(partial(process_single_file, args=args, input_path_abs=input_path_abs), filepath): filepath
-                    for filepath in files_to_process_paths
-                }
+        with tqdm(total=len(files_to_process_paths), desc="Overall Progress", unit="file", ncols=100, smoothing=0.1, position=0, leave=True) as pbar:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs, initializer=worker_init, initargs=(worker_id_queue,)) as executor:
+
+                def submit_task(filepath):
+                    worker_id = threading.current_thread().worker_id
+                    return process_single_file(filepath, worker_id, args, input_path_abs)
+
+                future_to_path = {executor.submit(submit_task, path): path for path in files_to_process_paths}
 
                 for future in concurrent.futures.as_completed(future_to_path):
                     path = future_to_path[future]
                     try:
-                        status = future.result()
-                        stats[status] += 1
+                        status = future.result() 
+                        if status in stats:
+                            stats[status] += 1
+                        else:
+                            stats["failed"] += 1 
+                            with tqdm_lock:
+                                tqdm.write(f"🚨 UNKNOWN STATUS '{status}' for '{os.path.basename(path)}'.")
                     except Exception as exc:
-                        tqdm.write(f"🚨 An unexpected error occurred while processing '{os.path.basename(path)}': {exc}")
+                        with tqdm_lock:
+                             tqdm.write(f"🚨 CRITICAL ERROR during task for '{os.path.basename(path)}': {exc}")
                         stats["failed"] += 1
                     finally:
                         pbar.update(1)
@@ -385,6 +447,7 @@ def main():
     summary_title = "--- Dry Run Summary ---" if args.dry_run else "--- Processing Summary ---"
     processed_label = "Would be processed" if args.dry_run else "Successfully processed"
     
+    print()
     print(f"\n{summary_title}")
     print(f"Total files checked: {len(files_to_process_paths)}")
     print(f"✅ {processed_label}: {stats['processed']}")
