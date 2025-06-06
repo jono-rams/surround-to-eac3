@@ -257,6 +257,15 @@ def process_single_file(filepath: str, pbar_position: int, args: argparse.Namesp
             output_dir_for_this_file = args.output_directory_base
     
     final_output_filepath = os.path.join(output_dir_for_this_file, output_filename)
+
+    # Check if the output file already exists and we are NOT forcing reprocessing.
+    if os.path.exists(final_output_filepath) and not args.force_reprocess:
+        file_specific_logs.append(f"      ⏭️ Skipping: Output file already exists. Use --force-reprocess to override.")
+        with tqdm_lock:
+            for log_msg in file_specific_logs:
+                tqdm.write(log_msg)
+        final_status = "skipped_existing"
+        return final_status
     
     # Check for identical paths before starting
     if os.path.abspath(filepath) == os.path.abspath(final_output_filepath):
@@ -365,6 +374,11 @@ def main():
         action="store_true", # Makes it a flag, e.g., --dry-run
         help="Analyze files and report actions without executing ffmpeg."
     )
+    parser.add_argument(
+        "--force-reprocess",
+        action="store_true",
+        help="Force reprocessing of all files, even if an output file with the target name already exists."
+    )
 
     args = parser.parse_args()
 
@@ -403,6 +417,7 @@ def main():
         "skipped_no_ops": 0, 
         "skipped_no_transcode": 0, 
         "skipped_identical_path": 0,
+        "skipped_existing": 0,
         "failed": 0
     }
 
@@ -451,11 +466,12 @@ def main():
     print(f"\n{summary_title}")
     print(f"Total files checked: {len(files_to_process_paths)}")
     print(f"✅ {processed_label}: {stats['processed']}")
-    total_skipped = stats['skipped_no_ops'] + stats['skipped_no_transcode'] + stats['skipped_identical_path']
+    total_skipped = stats['skipped_no_ops'] + stats['skipped_no_transcode'] + stats['skipped_identical_path'] + stats['skipped_existing']
     print(f"⏭️ Total Skipped: {total_skipped}")
     if total_skipped > 0:
         print(f"    - No target audio operations: {stats['skipped_no_ops']}")
         print(f"    - No transcoding required (all copy): {stats['skipped_no_transcode']}")
         print(f"    - Identical input/output path: {stats['skipped_identical_path']}")
+        print(f"    - Output file already exists: {stats['skipped_existing']}")
     print(f"🚨 Failed to process: {stats['failed']}")
     print("--------------------------")

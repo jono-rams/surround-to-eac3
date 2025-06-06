@@ -50,6 +50,10 @@ This tool is perfect for users who want to standardize their media library's aud
 
   * Files are skipped entirely if no audio streams in the target languages meet the criteria for transcoding, preventing empty or unnecessary output files.
 
+* **Efficient Processing:**
+
+  * The script automatically skips processing a file if an output file with the target name already exists. This allows you to safely re-run the script on the same directory to only process new files. Use the `--force-reprocess` flag to override this behavior.
+
 * **Flexible Output:** 
 
   * Save processed files alongside originals or in a specified output directory, maintaining the source folder structure if applicable.
@@ -99,11 +103,15 @@ __*This will use all available CPU cores for maximum speed.*__
 
 `eac3-transcode --input "video.mkv" --langs "eng,spa" --bitrate "640k" --jobs 4`
 
+5. **Force the script to re-process all files, even those that already exist:**
+
+`eac3-transcode --input "/path/to/your/video_folder/" --force-reprocess`
+
 ## Command-Line Options
 
 **Usage:**
 
-`eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE] [-l LANGUAGES] [-j JOBS] [--dry-run]`  
+`eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE] [-l LANGUAGES] [-j JOBS] [--dry-run] [--force-reprocess]`  
 An advanced video transcoder that processes files to use E-AC3 for specific audio tracks, filters by language, and can process entire folders.
 
 **Options:**
@@ -129,15 +137,23 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 * `--dry-run`  
     **(Optional)** Analyze files and report actions without executing ffmpeg. No files will be modified.
 
+* `--force-reprocess`  
+    **(Optional)** Force reprocessing of all files, even if an output file with the target name already exists.
+
+
 ## How It Works
 
 1. **File Discovery:** The script scans the input path for `.mkv` and `.mp4` files.
 
-2. **Stream Analysis (using `ffprobe`):** For each file:
+2. **Pre-flight Checks:**
+
+    * **Existence Check:** The script first determines the final output filename. If that file already exists and `--force-reprocess` is NOT used, the script skips the file and moves to the next one.
+
+3. **Stream Analysis (using `ffprobe`):** For each file:
 
    * It extracts information about all audio streams: codec, channels, and language tags.
 
-3. **Decision Logic:**
+4. **Decision Logic:**
 
    * **Language Filter:** Only audio streams matching the languages provided with the `-l LANGUAGES, --langs LANGUAGES` option are considered for keeping. **This defaults to `eng,jpn`**. Others are marked to be dropped.
 
@@ -147,7 +163,7 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
    * **File Skipping:** If no audio streams are marked for 'transcode', the entire file is skipped.
 
-4. **Processing (using `ffmpeg`):**
+5. **Processing (using `ffmpeg`):**
 
    * If not in `--dry-run` mode, a new FFmpeg command is constructed. This processing is done in parallel for multiple files, with a progress bar updating you on the status of the batch.
 
@@ -171,7 +187,11 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
 * **No files processed / "Skipping 'filename': No audio streams in the desired languages... meet criteria..."**:
 
-  * This is expected behavior if the files scanned do not contain any audio tracks in the target languages that require transcoding to E-AC3. This message reflects the default languages (`eng,jpn`) or the ones you specified with `--langs`. Use `--dry-run` to confirm the logic without waiting for processing.
+  * This is expected if files don't meet the criteria. Check the log message:
+
+    * **"Output file already exists.":** This is the default behavior. The script will not re-process a file if the output (`filename_eac3.mkv`) is already present. Use `--force-reprocess` if you want to overwrite it.
+
+    * **"No audio streams... meet criteria":** This means no audio tracks in the target languages require transcoding to E-AC3. This reflects the default languages (`eng,jpn`) or the ones you specified with `--langs`.
 
 * **Permission Errors:**
 
