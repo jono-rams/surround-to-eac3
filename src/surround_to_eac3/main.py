@@ -118,7 +118,7 @@ def process_file_with_ffmpeg(
     base_filename = os.path.basename(input_filepath)
     output_filename = os.path.basename(final_output_filepath)
 
-    ffmpeg_cmd = ["ffmpeg", "-nostdin", "-i", input_filepath]
+    ffmpeg_cmd = ["ffmpeg", "-nostdin", "-i", input_filepath, "-map_metadata", "0"]
     map_operations = []
     output_audio_stream_ffmpeg_idx = 0 # For -c:a:0, -c:a:1 etc.
 
