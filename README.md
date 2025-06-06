@@ -56,7 +56,7 @@ You can verify your FFmpeg installation by opening a terminal or command prompt 
 
 Install `eac3-transcode` directly from PyPI using pip:
 
-pip install surround-to-eac3
+`pip install surround-to-eac3`  
 It's recommended to install it in a virtual environment.
 
 ## Usage
