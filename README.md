@@ -12,6 +12,18 @@ This tool is perfect for users who want to standardize their media library's aud
 
   * Process a single video or batch-process an entire folder (including subfolders).
 
+* **High-Performance Parrallel Processing:**
+
+  * Processes multiple files simultaneously to dramatically speed up batch jobs, automatically using the optimal number of CPU cores.
+
+* **Interactive Progress Bar:**
+
+  * A clean `tqdm` progress bar shows you the overall progress, ETA, and processing speed.
+
+* **Safe Dry Run Mode:**
+
+  * Run the script with a `--dry-run` flag to see a report of exactly what changes would be made without modifying any files.
+
 * **Targets Specific Languages:** 
 
   * By default, it processes English (`eng`) and Japanese (`jpn`) audio streams, but this is **fully customizable** via a command-line argument.
@@ -36,9 +48,11 @@ This tool is perfect for users who want to standardize their media library's aud
 
   * Audio streams not in your target languages are dropped to save space and processing time.
 
-  * Files are skipped entirely if no audio streams in the target languages meet the criteria for transcoding or copying, preventing empty or unnecessary output files.
+  * Files are skipped entirely if no audio streams in the target languages meet the criteria for transcoding, preventing empty or unnecessary output files.
 
-* **Flexible Output:** Save processed files alongside originals or in a specified output directory, maintaining the source folder structure if applicable.
+* **Flexible Output:** 
+
+  * Save processed files alongside originals or in a specified output directory, maintaining the source folder structure if applicable.
 
 ## Prerequisites
 
@@ -65,33 +79,31 @@ The primary command is `eac3-transcode`.
 
 ### Basic Examples:
 
-1. **Process a single video file (output saved in the same directory):**
+1. **See what the script would do without changing any files (Dry Run):**
 
-eac3-transcode --input "/path/to/your/movie.mkv"
-*Output will be `/path/to/your/movie_eac3.mkv` if processing occurs.*
+`eac3-transcode --input "/path/to/your/video_folder/" --dry-run  `  
+__*This is the safest way to start, to confirm the script's logic matches your expectations.*__
 
 2. **Process** all videos in a folder (output saved in the same directory as **originals):**
 
-eac3-transcode --input "/path/to/your/video_folder/"
+`eac3-transcode --input "/path/to/your/video_folder/"`  
+__*This will use all available CPU cores for maximum speed.*__
 
 3. **Process videos and save them to a specific output directory:**
 
-eac3-transcode --input "/path/to/your/video_folder/" --outdir "/path/to/your/processed_videos/"
+`eac3-transcode --input "/path/to/your/video_folder/" --outdir "/path/to/your/processed_videos/"`  
+
 *If `/path/to/your/video_folder/` contains subfolders, the structure will be replicated under `/path/to/your/processed_videos/`.*
 
-4. **Specify a different bitrate for transcoded E-AC3 audio:**
+4. **Process with custom options (different languages, bitrate, and limited to 4 parallel jobs):**
 
-eac3-transcode --input "video.mp4" --bitrate "640k"
-
-4. **Process for different languages (e.g., English and Spanish):**
-
-eac3-transcode --input "video.mkv" --langs "eng,spa"
+`eac3-transcode --input "video.mkv" --langs "eng,spa" --bitrate "640k" --jobs 4`
 
 ## Command-Line Options
 
 **Usage:**
 
-eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE] [-l LANGUAGES]  
+`eac3-transcode [-h] -i INPUT_PATH [-o OUTPUT_DIRECTORY_BASE] [-br AUDIO_BITRATE] [-l LANGUAGES] [-j JOBS] [--dry-run]`  
 An advanced video transcoder that processes files to use E-AC3 for specific audio tracks, filters by language, and can process entire folders.
 
 **Options:**
@@ -111,6 +123,12 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 * `-l LANGUAGES, --langs LANGUAGES`  
     **(Optional)** Comma-separated list of 3-letter audio languages to keep (e.g., 'eng,spa,fre'). Defaults to 'eng,jpn'.
 
+* `-j JOBS, --jobs JOBS`  
+    **(Optional)** Number of files to process in parallel. Defaults to the number of CPU cores on your system.
+
+* `--dry-run`  
+    **(Optional)** Analyze files and report actions without executing ffmpeg. No files will be modified.
+
 ## How It Works
 
 1. **File Discovery:** The script scans the input path for `.mkv` and `.mp4` files.
@@ -123,23 +141,15 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
    * **Language Filter:** Only audio streams matching the languages provided with the `-l LANGUAGES, --langs LANGUAGES` option are considered for keeping. **This defaults to `eng,jpn`**. Others are marked to be dropped.
 
-   * **Transcode Criteria:** A target language stream is transcoded to E-AC3 if:
+   * **Transcode Criteria:** A target language stream is transcoded to E-AC3 if it has 6 audio channels (5.1) and its current codec is not `ac3` or `eac3`.
 
-     * It has 6 audio channels (5.1 surround).
+   * **Copy Criteria:** A target language stream is copied directly if it's already `ac3`/`eac3` or it does not have 6 channels.
 
-     * Its current codec is *not* `ac3` or `eac3`.
-
-   * **Copy Criteria:** A target language stream is copied directly if:
-
-     * It's already `ac3` or `eac3`.
-
-     * It does not have 6 channels (e.g., it's stereo).
-
-   * **File Skipping:** If no audio streams are marked for 'transcode' (e.g., a file only contains French audio, and French is not a target language, or all target languages' audio are already in the desired format and channel layout for copying), the entire file is skipped to avoid creating redundant or empty output files.
+   * **File Skipping:** If no audio streams are marked for 'transcode', the entire file is skipped.
 
 4. **Processing (using `ffmpeg`):**
 
-   * A new FFmpeg command is constructed based on the decisions.
+   * If not in `--dry-run` mode, a new FFmpeg command is constructed. This processing is done in parallel for multiple files, with a progress bar updating you on the status of the batch.
 
    * Video (`-c:v copy`) and subtitle (`-c:s copy`) streams are mapped and copied directly.
 
@@ -151,13 +161,17 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
 ## Troubleshooting
 
-* `ffmpeg` or **`ffprobe` not found:**
+* **`ffmpeg` or `ffprobe` not found:**
 
   * Ensure FFmpeg is installed correctly and its `bin` directory is in your system's PATH environment variable. See the [Prerequisites](#prerequisites) section.
 
+* **High CPU/Disk Usage:**
+
+  * The script defaults to using all your CPU cores for maximum speed. If your system becomes unresponsive during processing, you can limit the number of parallel jobs with the `--jobs` flag (e.g., `--jobs 2`).
+
 * **No files processed / "Skipping 'filename': No audio streams in the desired languages... meet criteria..."**:
 
-  * This is expected behavior if the files scanned do not contain any audio tracks in the target languages that require transcoding to E-AC3 or qualify for copying. This message reflects the default languages (`eng,jpn`) or the ones you specified with `--langs`.
+  * This is expected behavior if the files scanned do not contain any audio tracks in the target languages that require transcoding to E-AC3. This message reflects the default languages (`eng,jpn`) or the ones you specified with `--langs`. Use `--dry-run` to confirm the logic without waiting for processing.
 
 * **Permission Errors:**
 
@@ -178,3 +192,4 @@ This project is licensed under the MIT License - see the [LICENSE](https://gitea
 ## Acknowledgements
 
 * This tool relies heavily on the fantastic [FFmpeg](https://ffmpeg.org/) project.
+* The progress bar is powered by [tqdm](https://github.com/tqdm/tqdm).
