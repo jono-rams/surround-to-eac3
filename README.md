@@ -16,6 +16,9 @@ This tool is perfect for users who want to standardize their media library's aud
 
   * Processes multiple files simultaneously to dramatically speed up batch jobs, automatically using the optimal number of CPU cores.
 
+* **User-Friendly Configuration:**
+  * Automatically creates a default `options.json` file on the first run for easy customization. Command-line options always override the config file.
+
 * **Interactive Progress Bar:**
 
   * A clean `tqdm` progress bar shows you the overall progress, ETA, and processing speed.
@@ -88,7 +91,7 @@ The primary command is `eac3-transcode`.
 `eac3-transcode --input "/path/to/your/video_folder/" --dry-run  `  
 __*This is the safest way to start, to confirm the script's logic matches your expectations.*__
 
-2. **Process** all videos in a folder (output saved in the same directory as **originals):**
+2. **Process** all videos in a folder (using defaults or your config file):**
 
 `eac3-transcode --input "/path/to/your/video_folder/"`  
 __*This will use all available CPU cores for maximum speed.*__
@@ -106,6 +109,45 @@ __*This will use all available CPU cores for maximum speed.*__
 5. **Force the script to re-process all files, even those that already exist:**
 
 `eac3-transcode --input "/path/to/your/video_folder/" --force-reprocess`
+
+## Configuration
+
+For convenience, the script supports a `options.json` file to set your preferred defaults.
+
+### How it Works
+
+1. **Automatic Creation:** The **first time** you run the script, it will automatically create a default `options.json` file in your user's configuration directory. It will print a message showing you where the file was created.
+
+2. **Search Order:** When you run the command,  it looks for a `options.json` file in this order:
+
+    * **1. Current Directory:** A `options.json` in the folder you are running the command from (for project-specific settings).
+
+    * **2. User Config Directory:** The global config file it created on the first run.
+
+3. **Overrides:** Any option you provide on the command line (e.g., `--bitrate 640k`) will always take precedence over the setting in the config file for that specific run.
+
+### Config File Location
+
+The global config file is located in the standard directory for your operating system:
+
+* Windows: `C:\Users\<YourUser>\AppData\Roaming\eac3-transcode\options.json`
+
+* macOS: `/Users/<YourUser>/Library/Application Support/eac3-transcode/options.json`
+
+* Linux: `/home/<YourUser>/.config/eac3-transcode/options.json`
+
+**Example `options.json`**  
+You can edit this JSON file ot change your default settings.  
+```
+{
+    "output_directory_base": null,
+    "audio_bitrate": "640k",
+    "languages": "eng,jpn",
+    "jobs": 8,
+    "dry_run": false,
+    "force_reprocess": false
+}
+```
 
 ## Command-Line Options
 

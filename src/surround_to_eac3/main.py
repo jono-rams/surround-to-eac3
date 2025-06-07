@@ -5,9 +5,14 @@ import shutil
 import argparse
 import json
 import threading
-import queue 
-from functools import partial
+import queue
 from tqdm import tqdm
+from platformdirs import user_config_dir
+
+# --- Constants for Configuration ---
+APP_NAME = "eac3-transcode"
+APP_AUTHOR = "eac3-transcode"
+CONFIG_FILENAME = "options.json"
 
 # Global lock for TQDM writes to prevent interleaving from multiple threads
 tqdm_lock = threading.Lock()
@@ -380,15 +385,47 @@ def main():
         help="Force reprocessing of all files, even if an output file with the target name already exists."
     )
 
+    # --- Configuration File Logic ---
+    config = {}
+
+    user_config_dir_path = user_config_dir(APP_NAME, APP_AUTHOR)
+    user_config_file_path = os.path.join(user_config_dir_path, CONFIG_FILENAME)
+
+    if not os.path.exists(user_config_file_path):
+        try:
+            defaults = {action.dest: action.default for action in parser._actions if action.dest != "help" and not action.required}
+            os.makedirs(user_config_dir_path, exist_ok=True)
+            with open(user_config_file_path, 'w') as f:
+                json.dump(defaults, f, indent=4)
+            print(f"✅ Created default configuration at: {user_config_file_path}")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not create default config at '{user_config_file_path}': {e}")
+
+    potential_paths = [os.path.join(os.getcwd(), CONFIG_FILENAME), user_config_file_path]
+    loaded_config_path = None
+    for path in potential_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    config = json.load(f)
+                loaded_config_path = path
+                break
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"⚠️ Warning: Could not read or parse config at '{path}': {e}")
+                break
+    
+    parser.set_defaults(**config)
     args = parser.parse_args()
+
+    if loaded_config_path:
+        print(f"✅ Loaded configuration from: {loaded_config_path}")
 
     if args.dry_run:
         print("--- DRY RUN MODE ENABLED: No files will be modified. ---")
 
+    # --- File Discovery ---
     input_path_abs = os.path.abspath(args.input_path)
     files_to_process_paths = []
-
-    # Collect all files to process
     if os.path.isdir(input_path_abs):
         print(f"📁 Scanning folder: {input_path_abs}")
         for root, _, filenames in os.walk(input_path_abs):
