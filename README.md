@@ -253,7 +253,7 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 [![GitHub issues](https://img.shields.io/github/issues/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/pulls)
 
-Contributions, issues, and feature requests are welcome! Feel free to check [issues page](https://gitea.jono-rams.work/jono/ffmpeg-audio-transcoder/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check [issues page](https://github.com/jono-rams/surround-to-eac3/issues).
 
 ## Contributors
 
