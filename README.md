@@ -248,7 +248,39 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
 ## Contributing
 
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![GitHub contributors](https://img.shields.io/github/contributors/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/graphs/contributors)
+[![GitHub issues](https://img.shields.io/github/issues/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/pulls)
+
 Contributions, issues, and feature requests are welcome! Feel free to check [issues page](https://gitea.jono-rams.work/jono/ffmpeg-audio-transcoder/issues).
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://jono-rams.work"><img src="https://avatars.githubusercontent.com/u/29872001?v=4?s=100" width="100px;" alt="Jonathan Rampersad"/><br /><sub><b>Jonathan Rampersad</b></sub></a><br /><a href="https://github.com/jono-rams/surround-to-eac3/commits?author=jono-rams" title="Code">💻</a> <a href="https://github.com/jono-rams/surround-to-eac3/commits?author=jono-rams" title="Documentation">📖</a> <a href="#infra-jono-rams" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td align="center" size="13px" colspan="7">
+        <img src="https://raw.githubusercontent.com/all-contributors/all-contributors-cli/1b8533af435da9854653492b1327a23a4dbd0a10/assets/logo-small.svg">
+          <a href="https://all-contributors.js.org/docs/en/bot/usage">Add your contributions</a>
+        </img>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## License
 
