@@ -1,5 +1,8 @@
 # Surround to E-AC3 Transcoder (eac3-transcode)
 
+[![PyPI version](https://img.shields.io/pypi/v/surround-to-eac3.svg)](https://pypi.org/project/surround-to-eac3/)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/surround-to-eac3.svg)](https://pypi.org/project/surround-to-eac3/)
+
 **A** command-line utility to intelligently find and convert 5.1 surround sound audio tracks in your video files (`.mkv`, `.mp4`) to **the E-AC3 (Dolby Digital Plus) format, while preserving other streams.**
 
 This tool is perfect for users who want to standardize their media library's audio, ensuring compatibility and high quality for 5.1 channel audio tracks while allowing you to filter by language.
