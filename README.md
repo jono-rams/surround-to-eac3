@@ -249,7 +249,6 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 ## Contributing
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![GitHub contributors](https://img.shields.io/github/contributors/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/graphs/contributors)
 [![GitHub issues](https://img.shields.io/github/issues/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/issues)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/jono-rams/surround-to-eac3.svg?style=flat-square)](https://github.com/jono-rams/surround-to-eac3/pulls)
 
