@@ -11,6 +11,9 @@ This tool is perfect for users who want to standardize their media library's aud
 
 `eac3-transcode` automates the often tedious process of inspecting video files, identifying specific audio tracks, and re-encoding them. It's designed to be smart about which tracks to process:
 
+* **✨ Optional GUI:** 
+  * A user-friendly graphical interface is available for those who prefer not to use the command line. Launch it with `eac3-transcode --launch-gui`.
+
 * **Scans Individual Files or Entire Directories:** 
 
   * Process a single video or batch-process an entire folder (including subfolders).
@@ -113,6 +116,24 @@ __*This will use all available CPU cores for maximum speed.*__
 
 `eac3-transcode --input "/path/to/your/video_folder/" --force-reprocess`
 
+6. **Launching the GUI:**
+
+`eac3-transcode --launch-gui`
+
+The GUI provides access to all the same features as the command line, including:
+
+* Browse for input files or folders.
+
+* Browse for an output directory.
+
+* Adjust bitrate, languages, and job count.
+
+* Toggle "Dry Run" and "Force Reprocess".
+
+* Manually load a custom options.json config file.
+
+* A real-time log viewer to see the progress.
+
 ## Configuration
 
 For convenience, the script supports a `options.json` file to set your preferred defaults.
@@ -163,6 +184,9 @@ An advanced video transcoder that processes files to use E-AC3 for specific audi
 
 * `-h, --help`  
     Show this help message and exit.
+
+* `--launch-gui`
+    **(Optional)** Launch the graphical user interface.
 
 * `-i INPUT_PATH, --input INPUT_PATH`  
     **(Required)** Path to the input video file or folder.
