@@ -225,7 +225,7 @@ def main():
 
     # --- Summary (unchanged) ---
     summary_title = "--- Dry Run Summary ---" if args.dry_run else "--- Processing Summary ---"
-    processed_label = "Would be processed" if args.dry_row else "Successfully processed"
+    processed_label = "Would be processed" if args.dry_run else "Successfully processed"
     
     print()
     print(f"\n{summary_title}")
